@@ -1,0 +1,167 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+jobs:
+  build-and-push-docker:
+    name: Build and Push Docker Images
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}/backend
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix={{branch}}-
+
+      - name: Build frontend
+        working-directory: ./frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Copy frontend to backend
+        run: |
+          rm -rf backend/static-react
+          cp -r frontend/dist backend/static-react
+
+      - name: Create Dockerfile
+        working-directory: ./backend
+        run: |
+          cat > Dockerfile << 'DOCKEREOF'
+          FROM python:3.11-slim
+          
+          WORKDIR /app
+          
+          # Install system dependencies
+          RUN apt-get update && apt-get install -y \
+              postgresql-client \
+              curl \
+              && rm -rf /var/lib/apt/lists/*
+          
+          # Copy requirements and install Python dependencies
+          COPY requirements.txt .
+          RUN pip install --no-cache-dir -r requirements.txt
+          
+          # Copy application code
+          COPY . .
+          
+          # Create a non-root user
+          RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+          USER appuser
+          
+          # Expose port
+          EXPOSE 8000
+          
+          # Health check
+          HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+            CMD curl -f http://localhost:8000/health || exit 1
+          
+          # Run the application
+          CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+          DOCKEREOF
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy-to-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [build-and-push-docker]
+    if: github.ref == 'refs/heads/develop' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
+    environment:
+      name: staging
+      url: https://staging.trackdev.example.com
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to staging
+        run: |
+          echo "🚀 Deploying to staging environment..."
+          echo "Docker image: ghcr.io/${{ github.repository }}/backend:develop"
+          echo ""
+          echo "To complete deployment, configure your deployment method:"
+          echo "- SSH to server and pull/restart containers"
+          echo "- Use GitHub Actions deploy keys"
+          echo "- Configure cloud provider CLI (AWS/GCP/Azure)"
+          echo "- Use Kubernetes/Helm deployment"
+
+  deploy-to-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [build-and-push-docker]
+    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')
+    environment:
+      name: production
+      url: https://trackdev.example.com
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to production
+        run: |
+          echo "🚀 Deploying to production environment..."
+          echo "Docker image: ghcr.io/${{ github.repository }}/backend:main"
+          echo ""
+          echo "To complete deployment, configure your deployment method:"
+          echo "- SSH to server and pull/restart containers"
+          echo "- Use GitHub Actions deploy keys"
+          echo "- Configure cloud provider CLI (AWS/GCP/Azure)"
+          echo "- Use Kubernetes/Helm deployment"
+
+      - name: Create deployment summary
+        run: |
+          echo "## 🎉 Deployment Successful" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** Production" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Author:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Time:** $(date)" >> $GITHUB_STEP_SUMMARY

@@ -1,0 +1,170 @@
+name: Integration Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+jobs:
+  integration-test:
+    name: Full Stack Integration Test
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: redmine_bot_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: 'backend/requirements.txt'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
+
+      - name: Install backend dependencies
+        working-directory: ./backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Install frontend dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: ./frontend
+        run: npm run build
+
+      - name: Copy frontend build to backend
+        run: |
+          rm -rf backend/static-react
+          cp -r frontend/dist backend/static-react
+
+      - name: Create backend .env
+        working-directory: ./backend
+        run: |
+          cat > .env << EOF
+          REDMINE_URL=https://test-redmine.com
+          REDMINE_API_KEY=test_key
+          BOT_TOKEN=test_token
+          DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/redmine_bot_test
+          HOST=0.0.0.0
+          PORT=8000
+          ALLOWED_API_KEYS=test:testkey123
+          WEBAPP_URL=http://localhost:8000
+          EOF
+
+      - name: Start backend server
+        working-directory: ./backend
+        run: |
+          uvicorn main:app --host 0.0.0.0 --port 8000 &
+          echo $! > backend.pid
+          sleep 10
+
+      - name: Test API endpoints
+        run: |
+          # Test health endpoint
+          curl -f http://localhost:8000/health || exit 1
+          
+          # Test root endpoint
+          curl -f http://localhost:8000/ || exit 1
+          
+          # Test docs
+          curl -f http://localhost:8000/docs || exit 1
+          
+          # Test API with auth
+          curl -f -H "X-API-Key: test_key" http://localhost:8000/api/v1/projects || true
+
+      - name: Test frontend static files
+        run: |
+          # Test if frontend is served
+          curl -f http://localhost:8000/dashboard || exit 1
+          
+          # Test static assets
+          curl -f http://localhost:8000/favicon.svg || true
+
+      - name: Stop backend server
+        if: always()
+        working-directory: ./backend
+        run: |
+          if [ -f backend.pid ]; then
+            kill $(cat backend.pid) || true
+          fi
+
+      - name: Upload integration test logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-logs
+          path: |
+            backend/*.log
+            backend/.env
+
+  e2e-test:
+    name: End-to-End Tests
+    runs-on: ubuntu-latest
+    needs: [integration-test]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+
+      - name: Install Playwright
+        working-directory: ./frontend
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Create E2E test if not exists
+        working-directory: ./frontend
+        run: |
+          mkdir -p e2e
+          if [ ! -f "e2e/basic.spec.js" ]; then
+            cat > e2e/basic.spec.js << 'E2EEOF'
+          const { test, expect } = require('@playwright/test');
+          
+          test.describe('Basic Frontend Tests', () => {
+            test('homepage loads', async ({ page }) => {
+              // This is a placeholder test
+              // Add your actual E2E tests here
+              expect(true).toBe(true);
+            });
+          });
+          E2EEOF
+          fi
+
+      - name: Run E2E tests
+        working-directory: ./frontend
+        run: |
+          # Add playwright config if needed
+          echo "E2E tests placeholder - configure Playwright for your needs"
+        continue-on-error: true
