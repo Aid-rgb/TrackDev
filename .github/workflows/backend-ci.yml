@@ -81,16 +81,14 @@ jobs:
       - name: Create test .env file
         working-directory: ./backend
         run: |
-          cat > .env << EOF
-          REDMINE_URL=https://test-redmine.com
-          REDMINE_API_KEY=test_key
-          BOT_TOKEN=test_token
-          DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/redmine_bot_test
-          HOST=0.0.0.0
-          PORT=8000
-          ALLOWED_API_KEYS=test:testkey123
-          WEBAPP_URL=https://test.ngrok-free.app
-          EOF
+          echo "REDMINE_URL=https://test-redmine.com" > .env
+          echo "REDMINE_API_KEY=test_key" >> .env
+          echo "BOT_TOKEN=test_token" >> .env
+          echo "DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/redmine_bot_test" >> .env
+          echo "HOST=0.0.0.0" >> .env
+          echo "PORT=8000" >> .env
+          echo "ALLOWED_API_KEYS=test:testkey123" >> .env
+          echo "WEBAPP_URL=https://test.ngrok-free.app" >> .env
 
       - name: Run tests with pytest
         working-directory: ./backend
