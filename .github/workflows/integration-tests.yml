@@ -63,14 +63,25 @@ jobs:
           echo "Building frontend..."
           npm run build
           echo "✅ Frontend built"
+          echo "Checking dist directory:"
+          ls -la . || true
+          if [ -d "dist" ]; then
+            echo "✅ dist found locally"
+            ls -la dist
+          fi
 
       - name: Check frontend build
         run: |
+          echo "Checking from root directory:"
+          pwd
+          ls -la frontend/ || true
           if [ -d "frontend/dist" ]; then
             echo "✅ Frontend dist exists"
             ls -la frontend/dist
           else
             echo "❌ Frontend dist not found"
+            echo "Content of frontend directory:"
+            ls -laR frontend/ | head -50
             exit 1
           fi
 
