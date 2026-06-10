@@ -60,14 +60,28 @@ jobs:
       - name: Build frontend
         working-directory: ./frontend
         run: |
-          echo "Building frontend..."
-          npm run build
-          echo "✅ Frontend built"
-          echo "Checking dist directory:"
-          ls -la . || true
+          echo "=== Starting frontend build ==="
+          echo "Node version: $(node --version)"
+          echo "NPM version: $(npm --version)"
+          echo "Current directory: $(pwd)"
+          echo ""
+          echo "Running npm run build..."
+          npm run build 2>&1 || {
+            echo "❌ Build failed with exit code $?"
+            echo "Checking if dist was created anyway:"
+            ls -la .
+            exit 1
+          }
+          echo ""
+          echo "=== Build completed ==="
+          echo "Contents after build:"
+          ls -la .
           if [ -d "dist" ]; then
-            echo "✅ dist found locally"
-            ls -la dist
+            echo "✅ dist directory created"
+            ls -la dist/
+          else
+            echo "❌ dist directory NOT created"
+            echo "This is the problem!"
           fi
 
       - name: Check frontend build
