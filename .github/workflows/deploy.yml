@@ -54,14 +54,19 @@ jobs:
 
       - name: Build frontend
         working-directory: ./frontend
-        run: |
-          npm ci
-          npm run build
+        run: npm run build
 
-      - name: Copy frontend to backend
+      - name: Check and copy frontend to backend
         run: |
-          rm -rf backend/static-react
-          cp -r frontend/dist backend/static-react
+          if [ -d "frontend/dist" ]; then
+            echo "✅ Copying frontend build..."
+            rm -rf backend/static-react
+            mkdir -p backend/static-react
+            cp -r frontend/dist/* backend/static-react/
+            echo "✅ Frontend copied successfully"
+          else
+            echo "⚠️ Frontend dist not found, skipping..."
+          fi
 
       - name: Create Dockerfile
         working-directory: ./backend

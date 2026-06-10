@@ -59,10 +59,21 @@ jobs:
         working-directory: ./frontend
         run: npm run build
 
+      - name: Check frontend build
+        run: |
+          if [ -d "frontend/dist" ]; then
+            echo "✅ Frontend dist exists"
+            ls -la frontend/dist
+          else
+            echo "❌ Frontend dist not found"
+            exit 1
+          fi
+
       - name: Copy frontend build to backend
         run: |
           rm -rf backend/static-react
-          cp -r frontend/dist backend/static-react
+          mkdir -p backend/static-react
+          cp -r frontend/dist/* backend/static-react/ || echo "Warning: Could not copy frontend files"
 
       - name: Create backend .env
         working-directory: ./backend

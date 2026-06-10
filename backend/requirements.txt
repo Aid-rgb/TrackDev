@@ -1,21 +1,28 @@
-fastapi==0.109.0
-uvicorn==0.27.0
-httpx==0.27.0
-python-dotenv==1.0.1
-pydantic==2.6.1
-requests==2.31.0
+# FastAPI (>= 0.110.0 supports pydantic 2.x)
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
+python-multipart>=0.0.9
+
+# HTTP Client
+httpx>=0.27.0
+requests>=2.31.0
+
+# Configuration
+python-dotenv>=1.0.0
+pydantic>=2.6.0
+pydantic-settings>=2.0.0
 
 # Telegram Bot
-aiogram==3.4.1
+aiogram>=3.4.0
 
 # Database
-sqlalchemy==2.0.25
-asyncpg==0.29.0
-psycopg2-binary==2.9.9
+sqlalchemy>=2.0.25
+asyncpg>=0.29.0
+psycopg2-binary>=2.9.9
 
 # Date/Time
-python-dateutil==2.8.2
+python-dateutil>=2.8.2
 
-# Frontend
-jinja2==3.1.2
-aiofiles==23.2.1
+# Templates and Static Files
+jinja2>=3.1.2
+aiofiles>=23.2.0

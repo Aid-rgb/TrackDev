@@ -4,22 +4,21 @@ Pytest configuration and fixtures
 import pytest
 import os
 import sys
-from typing import Generator
-from fastapi.testclient import TestClient
 
 # Добавляем путь к backend в PYTHONPATH
 backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if backend_dir not in sys.path:
-    sys.path.insert(0, backend_dir)
+sys.path.insert(0, backend_dir)
 
 # Set test environment
 os.environ["TESTING"] = "1"
 
 
-@pytest.fixture
-def client() -> Generator:
+@pytest.fixture(scope="session")
+def client():
     """Create a test client for the FastAPI app"""
     from main import app
+    from fastapi.testclient import TestClient
+    
     with TestClient(app) as test_client:
         yield test_client
 

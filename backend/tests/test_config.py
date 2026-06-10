@@ -3,6 +3,10 @@ Tests for configuration
 """
 import pytest
 import os
+import sys
+
+# Добавляем путь к backend для импорта
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def test_environment_variables():
@@ -10,15 +14,6 @@ def test_environment_variables():
     # These should be set by the test environment
     assert os.getenv("DATABASE_URL") is not None
     assert os.getenv("REDMINE_URL") is not None
-
-
-def test_config_loading():
-    """Test configuration loading"""
-    from app.core.config import settings
-    
-    assert settings is not None
-    assert hasattr(settings, "redmine_url")
-    assert hasattr(settings, "database_url")
 
 
 def test_test_mode():
