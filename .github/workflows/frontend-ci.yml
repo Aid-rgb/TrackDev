@@ -32,13 +32,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: ./frontend
-        run: |
-          echo "Node version: $(node --version)"
-          echo "NPM version: $(npm --version)"
-          npm install
-          echo "✅ Dependencies installed"
-          echo "Checking vite:"
-          npx vite --version || echo "⚠️ vite not found"
+        run: npm install
 
       - name: Run ESLint
         working-directory: ./frontend
@@ -52,9 +46,7 @@ jobs:
 
       - name: Build project
         working-directory: ./frontend
-        run: |
-          echo "Building frontend..."
-          npm run build
+        run: npx vite build
         env:
           NODE_ENV: production
 
@@ -106,7 +98,7 @@ jobs:
 
       - name: Build project
         working-directory: ./frontend
-        run: npm run build
+        run: npx vite build
 
       - name: Install http-server
         run: npm install -g http-server
