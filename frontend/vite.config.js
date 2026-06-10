@@ -17,7 +17,7 @@ export default defineConfig({
     }
   },
   build: {
-    outDir: '../backend/static-react',
+    outDir: 'dist',
     emptyOutDir: true,
   }
 })
